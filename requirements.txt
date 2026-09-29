@@ -1,0 +1,17 @@
+# Ewakuacja – Rzeszów: symulacja dronowego wsparcia ewakuacji
+# Python 3.11+ (testowane na 3.13).  Instalacja:  pip install -r requirements.txt
+# Wersje sprawdzone w projekcie; zakres "<następna główna" chroni przed zmianami API.
+
+# --- serwer (API + WebSocket) ---
+fastapi>=0.141,<1
+uvicorn[standard]>=0.54,<1        # [standard] = obsługa WebSocket
+
+# --- symulacja i dane przestrzenne ---
+osmnx>=2.1,<3                     # pobieranie sieci ulic i budynków z OpenStreetMap
+networkx>=3.7,<4                  # trasy piesze i przejazdy patroli
+numpy>=2.5,<3                     # mapa prawdopodobieństwa obecności ludzi
+shapely>=2.1,<3                   # dopasowanie punktów schronienia PSP do budynków
+pyproj>=3.8,<4                    # BDOT10k: przeliczenie układu EPSG:2180 -> WGS84
+
+# --- sieć ---
+truststore>=0.10,<1               # HTTPS z certyfikatami systemu (Windows: proxy/antywirus)

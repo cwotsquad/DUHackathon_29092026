@@ -1,0 +1,551 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Rzeszów – ewakuacja z dronami</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+*{box-sizing:border-box}
+body{margin:0;font:13px system-ui,sans-serif;display:flex;height:100vh;background:#111;color:#ddd}
+.side{width:280px;padding:10px 12px;overflow:auto;background:#1b1d22;border-right:1px solid #333}
+#right{border-right:0;border-left:1px solid #333;width:320px;display:flex;flex-direction:column}
+h2{margin:0 0 6px;font-size:15px}
+h3{margin:12px 0 5px;font-size:11px;text-transform:uppercase;color:#8a9;letter-spacing:.06em}
+#wrap{flex:1;position:relative}
+#map{position:absolute;inset:0;z-index:0;background:#222}
+button,select{background:#2d3340;color:#eee;border:1px solid #445;padding:5px 9px;border-radius:4px;cursor:pointer;margin:2px 2px 2px 0;font:inherit}
+button:hover{background:#3a4254}button.on{background:#2a6;border-color:#3c7}
+label{display:block;margin:3px 0}
+input[type=range]{width:100%}
+.stat{display:flex;justify-content:space-between;padding:2px 0;border-bottom:1px dashed #333}.stat b{color:#fff}
+.lg{display:inline-block;width:10px;height:10px;border-radius:50%;margin:0 4px 0 8px;vertical-align:middle}
+.bar{height:5px;background:#333;border-radius:3px;overflow:hidden;display:flex}.bar i{height:100%;background:#3c6}.bar u{height:100%;background:#fc3;opacity:.6}
+.sh{padding:3px 0;cursor:pointer}.sh:hover{color:#fff}
+.tabs{display:flex;gap:2px;margin:4px 0 2px}.tabs button{flex:1;margin:0;border-radius:4px 4px 0 0}
+.tab{display:none;flex:1;flex-direction:column;min-height:0}.tab.on{display:flex}
+.rs{background:#23262d;border-left:3px solid #fc3;padding:4px 7px;margin:4px 0;cursor:pointer;font-size:12px}
+.rs.done{border-color:#3c6;opacity:.75}.rs.bad{border-color:#e44;opacity:.75}
+.rs .eta{float:right;font-weight:600;color:#fc3}.rs.done .eta,.rs.bad .eta{color:#aaa;font-weight:400}
+.kd{font-size:10px;padding:0 4px;border-radius:3px;background:#345;margin-left:4px}.kd.schron{background:#a52}
+.shr{padding:4px 0;border-bottom:1px solid #2a2d33;cursor:pointer}.shr small{color:#999}
+.dr{background:#23262d;border-left:3px solid #4af;padding:6px 8px;margin:5px 0;cursor:pointer}
+.dr.rtb{border-color:#f93}.dr.charge{border-color:#888;opacity:.8}
+.dr .hd{display:flex;justify-content:space-between}.dr .st{font-size:11px;padding:0 5px;border-radius:3px;background:#345}
+.dr.rtb .st{background:#743}.dr.charge .st{background:#444}
+.bat{height:8px;background:#333;border-radius:4px;overflow:hidden;margin:4px 0}.bat i{display:block;height:100%}
+.dr small{color:#999}
+#feed{flex:1;overflow:auto;font-size:12px}
+#feed div{padding:4px 6px;border-left:3px solid #555;margin:3px 0;background:#23262d;cursor:pointer}
+#feed .det{border-color:#4cf}#feed .cmd{border-color:#5e5}#feed .warn{border-color:#f55;background:#3a2226}#feed .ok{border-color:#3c6}
+#feed span{color:#888;margin-right:5px}
+.night .leaflet-tile-pane{filter:brightness(.35) saturate(.3)}
+.opview .leaflet-tile-pane{filter:grayscale(1) brightness(.7)}
+#badge{position:absolute;top:10px;left:50%;transform:translateX(-50%);z-index:20;background:#000c;padding:5px 12px;border-radius:14px;font-weight:600}
+.leaflet-tooltip.st{background:#000b;color:#fff;border:0;box-shadow:none;padding:1px 5px;font-size:11px}
+.leaflet-tooltip.st:before{display:none}
+.wxbox{background:#23262d;padding:6px 8px;border-radius:4px;line-height:1.6}
+.wxbox .ef{color:#aaa;font-size:12px;border-top:1px dashed #444;margin-top:4px;padding-top:3px}
+.wxbox .gr{color:#fff;background:#a22;padding:2px 5px;border-radius:3px;display:inline-block;margin-top:3px}
+.arr{display:inline-block;transition:transform .3s}
+.drn svg{filter:drop-shadow(0 1px 2px #000c)}
+.drn span{position:absolute;top:27px;left:50%;transform:translateX(-50%);color:#fff;background:#000b;padding:0 4px;
+  border-radius:3px;font:bold 10px sans-serif;white-space:nowrap}
+.base .hp{width:34px;height:34px;border-radius:50%;background:#2d3340;border:3px solid #fff;color:#fff;
+  font:bold 18px/28px sans-serif;text-align:center;box-shadow:0 1px 6px #000a}
+.base .hp.ch{background:#b8860b;border-color:#fc3}
+.base .bl{position:absolute;top:36px;left:50%;transform:translateX(-50%);white-space:nowrap;color:#fff;background:#000b;
+  padding:0 5px;border-radius:3px;font-size:11px}
+#roles{position:absolute;top:10px;left:54px;z-index:20;display:flex}
+#roles button{margin:0;border-radius:0;box-shadow:0 1px 4px #0006}#roles button:first-child{border-radius:4px 0 0 4px}
+#roles button:last-child{border-radius:0 4px 4px 0}
+body.civil .side,body.civil #right,body.civil #badge,body.civil .leaflet-tooltip.st{display:none}
+#civCard,#civAlert,#polPanel{display:none}
+body.police>.side:first-child,body.police #right,body.police #badge{display:none}
+body.police #polPanel{display:flex}
+.pt{background:#23262d;border-left:4px solid #a6f;padding:7px 9px;margin:6px 0;font-size:13px;cursor:pointer}
+.pt.schron{border-color:#e44}.pt.done{opacity:.55}
+.pt .hd{display:flex;justify-content:space-between;gap:6px}.pt small{color:#aaa}
+.pt .alt{background:#1c3a26;color:#9f9;padding:5px 7px;border-radius:4px;margin-top:5px}
+.pt .say{background:#3a2f12;color:#fd8;padding:5px 7px;border-radius:4px;margin-top:5px;font-weight:600}
+.pt button{margin-top:6px}.st2{font-size:11px;padding:1px 6px;border-radius:3px;background:#444;white-space:nowrap}
+.st2.nowe{background:#a33}.st2.przydzielone{background:#a70}.st2.wr{background:#285}
+.unit .u{background:#1a4fd8;color:#fff;border:2px solid #fff;border-radius:7px;padding:3px 7px;font:bold 14px sans-serif;
+  white-space:nowrap;box-shadow:0 1px 5px #000a;transform:translate(-50%,-50%);display:inline-block}
+.unit .u.wolny{background:#555}.unit .u.na{background:#1a8f3a}
+.tl2{position:absolute;white-space:nowrap;color:#fff;background:#000c;padding:1px 5px;border-radius:3px;font-size:11px;transform:translate(-50%,-160%)}
+body.civil #civCard{display:block;position:absolute;left:50%;transform:translateX(-50%);bottom:16px;z-index:20;
+  width:min(440px,calc(100% - 32px));background:#1b1d22f2;border:1px solid #333;border-radius:12px;padding:12px 14px;box-shadow:0 4px 20px #0009}
+body.civil #civAlert{display:block;position:absolute;top:52px;left:50%;transform:translateX(-50%);z-index:20;background:#b22;
+  color:#fff;padding:6px 14px;border-radius:6px;font-weight:600;white-space:nowrap;box-shadow:0 2px 8px #0008}
+#civCard .big{font-size:34px;font-weight:700;color:#fff;line-height:1.1}
+#civCard .tn{font-size:17px;font-weight:600;color:#fff}#civCard small{color:#aaa}
+#civCard .note{background:#5a4a1c;color:#fd8;padding:6px 8px;border-radius:6px;margin-bottom:8px}
+#civCard .ok{background:#1c4a2a;color:#9f9}
+#civCard .row{display:flex;justify-content:space-between;align-items:flex-end;margin:8px 0}
+#civCard button{padding:9px 14px;font-size:15px}#civCard button.go{background:#2a6;border-color:#3c7;flex:1}
+.chip{display:inline-block;padding:1px 7px;border-radius:10px;font-size:12px;font-weight:600;color:#111}
+#short .al{background:#6b1414;border:2px solid #e44;border-radius:6px;padding:8px 10px;margin:4px 0 8px;animation:blink 1.6s infinite}
+@keyframes blink{50%{border-color:#fa8}}
+#short .al b{color:#fff}#short small{color:#fcc}
+#short .sg{background:#2a1a1a;border-radius:4px;padding:5px 7px;margin-top:5px;font-size:12px}
+#short .sg button{padding:2px 7px;font-size:12px;margin-top:3px}
+.heatimg{image-rendering:auto;filter:blur(6px)}
+.trk .tx{position:absolute;left:-14px;top:-18px;font-size:28px;color:#4cf;line-height:1}
+.trk .tl{position:absolute;left:14px;top:-10px;white-space:nowrap;color:#fff;background:#000a;padding:1px 4px;border-radius:3px;font-size:11px}
+</style>
+</head>
+<body>
+<div class="side">
+  <h2>🛡️ Ewakuacja – Rzeszów</h2>
+  <div style="color:#999">Symulacja: Python · Dane: OSM</div>
+  <h3>Scenariusz</h3>
+  <button id="bDemo">★ Scenariusz demo</button><button id="bRun">▶ Start</button><button id="bRst">Reset</button>
+  <label>Prędkość: <span id="spV">5</span>x<input type="range" id="sp" min="1" max="60" value="5"></label>
+  <h3>Tryb kliknięcia na mapie</h3>
+  <label><input type="radio" name="mode" value="shelter" checked> Oznacz / usuń schron (budynek)</label>
+  <label><input type="radio" name="mode" value="group"> Dodaj skupisko ludzi</label>
+  <label><input type="radio" name="mode" value="drone"> Dodaj drona</label>
+  <label><input type="radio" name="mode" value="patrol"> Dodaj patrol policji</label>
+  <label>Wielkość skupiska: <span id="gsV">30</span><input type="range" id="gs" min="5" max="150" value="30"></label>
+  <button id="bRnd">+ 5 losowych skupisk</button>
+  <h3>Służby – policja</h3>
+  <div class="stat">🚓 Patrole w terenie<b id="polCnt">0</b></div>
+  <div style="font-size:12px;color:#999" id="polSt"></div>
+  <button id="bPolAdd">+ Wypuść patrol</button><button id="bPolRem">− Wycofaj patrol</button>
+  <div style="font-size:11px;color:#999">Patrol startuje z bazy przy Rynku; tryb „Dodaj patrol policji” – we wskazanym miejscu.</div>
+  <h3>Warunki i drony</h3>
+  <label><input type="checkbox" id="night"> Noc</label>
+  <label>Sensor: <select id="sensor"><option value="auto">Auto (dzień RGB / noc IR)</option><option value="rgb">Wizja (RGB)</option><option value="ir">Termowizja (IR)</option></select></label>
+  <label><input type="checkbox" id="guide" checked> Centrum kieruje wykryte grupy do schronów</label>
+  <h3>Pogoda (IMGW-PIB)</h3>
+  <div id="wx" class="wxbox">–</div>
+  <button id="wxFetch">⟳ Pobierz aktualną z IMGW</button>
+  <details><summary style="cursor:pointer;margin-top:4px">Scenariusz ręczny</summary>
+    <label>Wiatr: <span id="wwV">0</span> m/s<input type="range" id="ww" min="0" max="20" value="0"></label>
+    <label>Kierunek (skąd wieje): <select id="wd"><option value="0">N</option><option value="45">NE</option><option value="90">E</option>
+      <option value="135">SE</option><option value="180">S</option><option value="225">SW</option><option value="270">W</option><option value="315">NW</option></select></label>
+    <label>Opad: <span id="wrV">0</span> mm<input type="range" id="wr" min="0" max="10" step=".5" value="0"></label>
+    <label>Temperatura: <span id="wtV">15</span>°C<input type="range" id="wt" min="-20" max="40" value="15"></label>
+    <label><input type="checkbox" id="wf"> Mgła (wilgotność ≥ 95%)</label>
+    <button id="wxSet">Zastosuj</button>
+  </details>
+  <h3>Strategia przeszukiwania</h3>
+  <select id="strat" style="width:100%">
+    <option value="prob" selected>Mapa prawdopodobieństwa (priorytety OSM)</option>
+    <option value="lawn">Kosiarka (pasy równoległe)</option>
+    <option value="spiral">Spirala (od centrum / od wykrycia)</option>
+    <option value="pspiral">Spirala od punktów prawdopodobieństwa</option>
+  </select>
+  <label title="Sektory dzielone tylko między drony w powietrzu"><input type="checkbox" id="dyn" checked> Podział dynamiczny sektorów</label>
+  <label title="Parzyste: zwiad RGB wysoko i szybko; nieparzyste: weryfikacja IR"><input type="checkbox" id="two"> Dwuetapowo: zwiad RGB → weryfikacja IR</label>
+  <label title="Max 1 dron poza patrolem – planowe powroty"><input type="checkbox" id="rot" checked> Rotacja baterii (kolejka powrotów)</label>
+  <label>Duża grupa po wykryciu:
+    <select id="escMode" style="width:100%">
+      <option value="lead">Odprowadzenie dronem do schronu</option>
+      <option value="hover" selected>Zawis 45 s (potwierdzenie komunikatu)</option>
+      <option value="off">Brak – dron wraca do przeszukiwania</option>
+    </select></label>
+  <label title="Eskorta/odprowadzenie tylko dla grup o szacowanej liczebności ≥ progu">Próg dużej grupy: <span id="escNV">30</span> os.
+    <input type="range" id="escN" min="5" max="150" step="5" value="30"></label>
+  <label title="Drony w zasięgu 700 m (także przez pośredników) scalają rejestry przydziałów i obserwacje schronów"><input type="checkbox" id="comm" checked> Komunikacja dron–dron (wspólny rejestr)</label>
+  <label><input type="checkbox" id="heat" checked> Warstwa: prawdopodobieństwo obecności ludzi</label>
+  <h3>Budynki</h3>
+  <button id="srcOsm" class="on">OpenStreetMap</button><button id="srcBdot">BDOT10k (GUGiK)</button>
+  <div id="srcInfo" style="color:#999;font-size:12px"></div>
+  <label title="Heurystyka z funkcji i wielkości budynku BDOT10k: bloki ≥4 kond., szkoły, szpitale, galerie, hale, parkingi wielopoziomowe, urzędy"><input type="checkbox" id="cand" checked> Podświetl propozycje schronów</label>
+  <div style="font-size:11px;line-height:1.7"><span style="display:inline-block;width:18px;border-top:2px dashed #0cf;vertical-align:middle"></span> kandydat BDOT10k
+    <span style="display:inline-block;width:18px;border-top:2px dashed #f93;margin-left:6px;vertical-align:middle"></span> punkt PSP · schron oznaczasz kliknięciem</div>
+  <h3>Punkty schronienia (KG PSP)</h3>
+  <select id="pspMode" style="width:100%">
+    <option value="24h" selected>Całodobowe + schrony</option>
+    <option value="all">Wszystkie punkty w obszarze</option>
+    <option value="schrony">Tylko schrony (4 w obszarze)</option>
+  </select>
+  <button id="bPsp">📥 Wczytaj propozycje z dane.gov.pl</button>
+  <div style="color:#999;font-size:11px">Oficjalny wykaz PSP (CC BY 4.0). Pojemność schronów wg danych miasta, miejsc ochronnych – z powierzchni budynku.</div>
+  <h3>Podkład mapy</h3>
+  <button id="bmOsm" class="on">🗺️ Mapa OSM</button><button id="bmOrto">🛰️ Ortofotomapa GUGiK</button>
+  <label><input type="checkbox" id="bmLab"> Ulice OSM na ortofotomapie</label>
+  <h3>Widok</h3>
+  <button id="vTruth" class="on">Stan rzeczywisty</button><button id="vOp">Obraz operatora</button>
+  <div style="margin-top:6px;line-height:1.8">
+    <span class="lg" style="background:#f93"></span>błądzi<span class="lg" style="background:#fd4"></span>zna schron<br>
+    <span class="lg" style="background:#5e5"></span>prowadzona przez Centrum<span class="lg" style="border:2px solid #4cf"></span>wykryta<br>
+    <span class="lg" style="border:2px dashed #f93"></span>zgłoszenie zwiadu (do weryfikacji)<br>
+    <span style="display:inline-block;width:22px;border-top:2px dashed #fff;margin:0 4px 0 8px;vertical-align:middle"></span>łącze dron–dron<br>
+    <span style="display:inline-block;width:22px;border-top:3px dotted #5e5;margin:0 4px 0 8px;vertical-align:middle"></span>odprowadzenie do schronu<br>
+    <span style="display:inline-block;width:90px;height:8px;margin:0 4px 0 8px;vertical-align:middle;background:linear-gradient(90deg,rgba(255,230,0,.1),#f80,#e00)"></span>prawdopodob. obecności
+  </div>
+</div>
+<div id="wrap"><div id="map"></div><div id="badge">STAN RZECZYWISTY (symulacja)</div>
+  <div id="roles"><button id="rRcb" class="on">📡 RCB</button><button id="rCiv">🧍 Mieszkaniec</button><button id="rPol">🚓 Policja</button></div>
+  <div id="civAlert">⚠ ALARM – udaj się do najbliższego schronu</div>
+  <div id="civCard"></div>
+</div>
+<div class="side" id="polPanel" style="width:340px;border-left:1px solid #333;border-right:0;flex-direction:column">
+  <h2>🚓 Policja – koordynacja ewakuacji</h2>
+  <div style="color:#999;font-size:12px">Zadania z danych dronów i stanu schronów. Dyżurny wysyła patrol.</div>
+  <label style="margin-top:6px"><input type="checkbox" id="polAuto" checked> Automatyczny przydział patroli do zadań</label>
+  <h3>Patrole</h3><div id="polUnits"></div>
+  <h3>Zadania</h3><div id="polTasks"></div>
+  <h3>Zakończone</h3><div id="polDone"></div>
+  <div style="margin-top:auto;padding-top:8px"><button id="polRun">▶</button> <small style="color:#999">symulacja (pokaz)</small></div>
+</div>
+<div class="side" id="right">
+  <h2>📡 Centrum Zarządzania Kryzysowego</h2>
+  <div id="short"></div>
+  <div class="tabs"><button id="tC" class="on">Sytuacja</button><button id="tD">Drony w locie</button><button id="tS">Schrony</button></div>
+  <div class="tab on" id="tabC">
+    <h3>Sytuacja</h3><div id="stats"></div>
+    <h3>Schrony</h3><div id="shelters"><i>Kliknij budynek, aby oznaczyć schron.</i></div>
+    <h3>Dziennik zdarzeń</h3><div id="feed"></div>
+  </div>
+  <div class="tab" id="tabS">
+    <h3>Rezerwacje w toku</h3><div id="resAct"><i>Brak – rezerwację tworzy dron po wykryciu i skierowaniu grupy.</i></div>
+    <h3>Schrony <input id="shQ" placeholder="szukaj adresu…" style="float:right;width:55%;background:#23262d;color:#ddd;border:1px solid #445;border-radius:3px;padding:1px 4px"></h3>
+    <div id="shList"></div>
+    <h3>Historia rezerwacji</h3><div id="resHist"></div>
+  </div>
+  <div class="tab" id="tabD">
+    <h3>Flota</h3><div id="fleet"></div>
+    <h3>Drony</h3><div id="drones"><i>Brak dronów – dodaj w trybie „Dodaj drona”.</i></div>
+  </div>
+</div>
+
+<script>
+const $=id=>document.getElementById(id);
+let C,K=111320,KX,S=null,view='truth',bpoly={},tips={};
+const toLL=(x,y)=>L.latLng(C[0]+y/K,C[1]+x/KX);
+const map=L.map('map',{preferCanvas:true,zoomSnap:.5});
+const osm=L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(map);
+// Ortofotomapa GUGiK (Geoportal) – WMS obsługuje EPSG:4326, nie 3857; na skalę miasta zniekształcenie pomijalne
+const orto=L.tileLayer.wms('https://mapy.geoportal.gov.pl/wss/service/PZGIK/ORTO/WMS/HighResolution',
+  {layers:'Raster',format:'image/jpeg',version:'1.3.0',crs:L.CRS.EPSG4326,maxZoom:20,attribution:'Ortofotomapa © GUGiK'});
+const ortoLab=L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,opacity:.35});
+L.control.layers({'Mapa (OpenStreetMap)':osm,'Ortofotomapa (GUGiK)':orto},{'Ulice OSM (półprzezroczyste)':ortoLab},{position:'topright'}).addTo(map);
+// przyciski w panelu, zsynchronizowane z kontrolką warstw
+function setBase(o){(o?osm:orto).remove();(o?orto:osm).addTo(map);$('bmLab').disabled=!o;
+  if(!o)ortoLab.remove();else if($('bmLab').checked)ortoLab.addTo(map)}
+const syncBase=()=>{const o=map.hasLayer(orto);$('bmOsm').classList.toggle('on',!o);$('bmOrto').classList.toggle('on',o);
+  $('bmLab').checked=map.hasLayer(ortoLab);$('bmLab').disabled=!o};
+map.on('baselayerchange overlayadd overlayremove',syncBase);
+$('bmOsm').onclick=()=>{setBase(false);syncBase()};$('bmOrto').onclick=()=>{setBase(true);syncBase()};
+$('bPsp').onclick=()=>{send({cmd:'psp',mode:$('pspMode').value});setTimeout(()=>loadMap(null),600)};
+$('shQ').oninput=()=>updRes();
+$('srcOsm').onclick=()=>loadMap('osm');$('srcBdot').onclick=()=>loadMap('bdot');
+$('cand').onchange=()=>{for(const id in bpoly){const p=bpoly[id];if(!p.isShelter)p.setStyle(bStyle(p.b))}};
+$('bmLab').onchange=e=>{e.target.checked?ortoLab.addTo(map):ortoLab.remove()};
+syncBase();
+const mode=()=>document.querySelector('input[name=mode]:checked').value;
+const ws=new WebSocket(`ws://${location.host}/ws`);
+const send=o=>ws.readyState===1&&ws.send(JSON.stringify(o));
+const fmt=t=>t==null?'–':`${Math.floor(t/60)}:${String(Math.floor(t%60)).padStart(2,'0')}`;
+
+const bLayer=L.layerGroup().addTo(map),bRend=L.canvas();
+const BST={color:'#789',fillColor:'#789',fillOpacity:.1,weight:1,dashArray:null};
+const CST={color:'#0cf',fillColor:'#0cf',fillOpacity:.18,weight:2,dashArray:'4 3'};
+const PST={color:'#f93',fillColor:'#f93',fillOpacity:.22,weight:2,dashArray:'5 3'};
+const bStyle=b=>!$('cand').checked?BST:b.psp?PST:b.cand?CST:BST;
+function loadMap(src,first){
+  fetch('/api/map'+(src?'?src='+src:'')).then(r=>r.json()).then(d=>{
+    C=d.center;KX=K*Math.cos(C[0]*Math.PI/180);
+    BOUNDS=d.bounds;if(first){const [x0,x1,y0,y1]=d.bounds;map.fitBounds([toLL(x0,y0),toLL(x1,y1)])}
+    bLayer.clearLayers();bpoly={};for(const id in tips){tips[id].remove();delete tips[id]}
+    for(const b of d.buildings){
+      const p=L.polygon(b.poly,{renderer:bRend,...bStyle(b)});
+      p.bindTooltip(`<b>${b.name||b.func||b.type||'budynek'}</b><br>${b.area} m²${b.levels?` · kondygnacje: ${b.levels}`:''}
+        ${b.psp?`<br><span style="color:#f93">◆ propozycja PSP: ${b.psp.kind}, ${b.psp.addr} · ${b.psp.access} · poj. ${b.psp.cap}</span><br><small>kliknij, aby oznaczyć jako schron</small>`
+          :b.cand?'<br><span style="color:#0cf">◆ kandydat na schron (BDOT10k)</span>':''}<br><small>${b.src==='bdot'?'BDOT10k – GUGiK':'OpenStreetMap'}</small>`,{sticky:true});
+      p.on('click',e=>{if(civil||mode()!=='shelter')return;L.DomEvent.stop(e);send({cmd:'shelter',id:b.id})});
+      p.b=b;p.addTo(bLayer);bpoly[b.id]=p;
+    }
+    $('srcOsm').classList.toggle('on',d.src==='osm');$('srcBdot').classList.toggle('on',d.src==='bdot');
+    $('cand').disabled=false;
+    $('srcInfo').textContent=`${d.buildings.length} budynków`+(d.src==='bdot'?`, ${d.buildings.filter(b=>b.cand).length} kandydatów na schron`:'');
+  });
+}
+loadMap(null,true);
+map.on('click',e=>{const m=mode(),ll={lat:e.latlng.lat,lon:e.latlng.lng};
+  if(civil){send({cmd:'me',...ll});return}
+  if(m==='group')send({cmd:'group',n:+$('gs').value,...ll});else if(m==='drone')send({cmd:'drone',...ll});
+  else if(m==='patrol')send({cmd:'pol_add',...ll})});
+
+ws.onmessage=e=>{const prev=S;S=JSON.parse(e.data);updShort();
+  if(S.police){const U=S.police.units;$('polCnt').textContent=U.length;
+    $('polSt').textContent=U.length?`patroluje: ${U.filter(u=>u.state==='wolny').length} · w drodze: ${U.filter(u=>u.state==='w drodze').length} · na miejscu: ${U.filter(u=>u.state==='na miejscu').length}`:'brak patroli – zadania policji czekają'}if(civil)updCiv();if(pol)updPol();
+  $('bRun').textContent=S.running?'⏸ Pauza':'▶ Start';
+  updShelters(prev);updStats();updDrones();updWx();if($('tabS').classList.contains('on'))updRes();else $('tS').textContent=`Schrony (${S.shelters.length})`;if(S.heat)drawHeat(S.heat);S.events.forEach(addEvent);draw()};
+
+// ---------- panel ----------
+function updShelters(prev){
+  const ids=new Set(S.shelters.map(s=>s[0]));
+  for(const id in tips)if(!ids.has(id)){tips[id].remove();delete tips[id];const p=bpoly[id];if(p){p.isShelter=false;p.setStyle(bStyle(p.b))}}
+  let h='';
+  const act=S.shelters.filter(x=>x[1]||x[3]),many=S.shelters.length>8;
+  const cst=S.civ&&Object.fromEntries(S.civ.shelters.map(x=>[x[0],x[5]]));
+  for(const [id,n,cap,res,nm0] of S.shelters){const p=bpoly[id];if(!p)continue;
+    const full=n>=cap;let col=full?'#e33':n>=.9*cap?'#f93':'#2c5';p.isShelter=true;
+    if((civil||pol)&&cst)col=CCOL[cst[id]];
+    p.setStyle({color:col,fillColor:col,fillOpacity:.5});
+    if(!tips[id])tips[id]=L.tooltip({permanent:true,direction:'center',className:'st'}).setLatLng(p.getCenter()).addTo(map);
+    tips[id].setContent(`${n}/${cap}`);if(!p._sh){p._sh=1;p.setTooltipContent(p.getTooltip().getContent()+`<br>🛡️ ${nm0}`)}
+    const nm=nm0||p.b.name||p.b.func||'Schron';
+    if(many&&!n&&!res)continue;
+    h+=`<div class="sh" data-id="${id}">${nm} — <b>${n}/${cap}</b>${res?` <span style="color:#fc3">(+${res} w drodze)</span>`:''}
+      <div class="bar"><i style="width:${100*n/cap}%"></i><u style="width:${Math.min(100-100*n/cap,100*res/cap)}%"></u></div></div>`}
+  $('shelters').innerHTML=(h||(S.shelters.length?'':'<i>Kliknij budynek, aby oznaczyć schron.</i>'))+
+    (many?`<div style="color:#999;font-size:12px">Pokazano aktywne: ${act.length} z ${S.shelters.length} – pełna lista w zakładce „Schrony”.</div>`:'');
+  document.querySelectorAll('.sh').forEach(el=>el.onclick=()=>map.flyTo(bpoly[el.dataset.id].getCenter(),18));
+}
+function updStats(){const s=S.stats,pc=v=>s.total?` (${Math.round(100*v/s.total)}%)`:'';
+  const r=(a,b)=>`<div class="stat">${a}<b>${b}</b></div>`;
+  $('stats').innerHTML=r('Czas symulacji',fmt(S.t))+r('Osoby w terenie',s.out+pc(s.out))+r('W schronach',s.inside+pc(s.inside))+
+    r('Prowadzone przez Centrum',s.guided)+r('Idą samodzielnie',s.knows)+r('Błądzą',s.wander)+
+    r('Odnalezieni przez drony',s.found+pc(s.found))+r('Grupy wykryte (aktywne)',s.detected_groups)+r('Drony w powietrzu',`${S.drones.filter(d=>d[3]!=='charge').length}/${S.drones.length}`)+r('Wolne miejsca',s.free)+
+    r('Ewakuacja 50% / 90%',`${fmt(s.t50)} / ${fmt(s.t90)}`);
+}
+function addEvent(ev){const d=document.createElement('div');d.className=ev.k;
+  d.innerHTML=`<span>${fmt(ev.t)}</span>${ev.m}`;
+  if(ev.x!=null)d.onclick=()=>map.flyTo(toLL(ev.x,ev.y),18);
+  $('feed').prepend(d);while($('feed').children.length>200)$('feed').lastChild.remove()}
+
+function updRes(){
+  const sh=Object.fromEntries(S.shelters.map(x=>[x[0],x]));
+  const card=([id,t,d,est,sid,sname,dist,eta,rem,st,te])=>{const cls=eta!=null?'':st.startsWith('dotarła')?'done':'bad';
+    return `<div class="rs ${cls}" data-sid="${sid}"><span class="eta">${eta!=null?'ETA '+fmt(eta):fmt(te)}</span>
+      <b>#${id}</b> 🚁D${d} · ~${est} os. → ${sname}<br><small>${eta!=null?`zostało ${rem} m z ${dist} m · zarezerwowano ${fmt(t)}`:`${st} · ${fmt(t)}–${fmt(te)}`}</small></div>`};
+  const act=S.res.filter(r=>r[7]!=null).sort((a,b)=>a[7]-b[7]);
+  $('resAct').innerHTML=act.length?act.map(card).join(''):'<i>Brak – rezerwację tworzy dron po wykryciu i skierowaniu grupy.</i>';
+  $('resHist').innerHTML=S.res.filter(r=>r[7]==null).slice(-25).reverse().map(card).join('')||'<i>–</i>';
+  const q=($('shQ').value||'').toLowerCase(),ar={};
+  for(const r of act)(ar[r[4]]=ar[r[4]]||[]).push(r);
+  const rows=S.shelters.filter(x=>!q||(x[4]+' '+x[5]).toLowerCase().includes(q))
+    .sort((a,b)=>(b[3]+b[1])-(a[3]+a[1])||(a[6]==='schron'?-1:1));
+  $('shList').innerHTML=rows.slice(0,80).map(([id,n,cap,res,nm,addr,kind,acc])=>`<div class="shr" data-sid="${id}">
+    ${nm}<span class="kd ${kind==='schron'?'schron':''}">${kind.toUpperCase()}</span>${acc?`<small> · ${acc}</small>`:''}
+    <div class="bar"><i style="width:${100*n/cap}%"></i><u style="width:${Math.min(100-100*n/cap,100*res/cap)}%"></u></div>
+    <small>zajęte ${n}/${cap}${res?` · zarezerwowane ${res}`:''}${ar[id]?` · najbliższe dojście ${fmt(ar[id][0][7])}`:''}</small></div>`).join('')
+    +(rows.length>80?`<small>… i ${rows.length-80} więcej</small>`:'')||'<i>Brak schronów.</i>';
+  document.querySelectorAll('.rs,.shr').forEach(el=>el.onclick=()=>{const p=bpoly[el.dataset.sid];if(p)map.flyTo(p.getCenter(),18)});
+  $('tS').textContent=`Schrony (${S.shelters.length})`;
+}
+const DIRS=['N','NE','E','SE','S','SW','W','NW'];
+function updWx(){const w=S.weather;if(!w)return;const pc=f=>f<1?`<b style="color:#f93">−${Math.round(100*(1-f))}%</b>`:'bez zmian';
+  $('wx').innerHTML=`<small style="color:#999">${w.src}${w.time?' · '+w.time:''}</small><br>
+    🌡️ ${(+w.temp).toFixed(1)}°C &nbsp; 💧 ${Math.round(w.hum)}% &nbsp; 🌧️ ${(+w.rain).toFixed(1)} mm<br>
+    💨 ${(+w.wind).toFixed(0)} m/s z ${DIRS[Math.round(w.wdir/45)%8]} <span class="arr" style="transform:rotate(${w.wdir+180}deg)">⬆</span>
+    ${w.press?` &nbsp; ⏲ ${Math.round(w.press)} hPa`:''}
+    <div class="ef">Czas lotu: <b>${(S.flight_time/60).toFixed(0)} min</b> (bateria ×${w.drain}) · zasięg RGB: ${pc(w.f_rgb)} · IR: ${pc(w.f_ir)}
+    ${w.grounded?'<br><span class="gr">⛔ LOTY WSTRZYMANE – wiatr powyżej 12 m/s</span>':''}</div>`}
+const DST={patrol:'PATROL',rtb:'POWRÓT DO BAZY',charge:'WYMIANA BATERII'};
+const DMD={follow:'ZAWIS NAD GRUPĄ',lead:'ODPROWADZA GRUPĘ',verify:'WERYFIKACJA'},ROLE={std:'Patrol',scout:'Zwiad',insp:'Weryfikacja'};
+function updDrones(){
+  const D=S.drones,air=D.filter(d=>d[3]!=='charge');
+  const avg=D.length?D.reduce((a,d)=>a+d[4],0)/D.length:0;
+  const r=(a,b)=>`<div class="stat">${a}<b>${b}</b></div>`;
+  $('tD').textContent=`Drony w locie (${air.length}/${D.length})`;
+  $('fleet').innerHTML=r('W powietrzu',`${air.length}/${D.length}`)+r('Patrolują',D.filter(d=>d[3]==='patrol').length)+
+    r('Wracają / w bazie',`${D.filter(d=>d[3]==='rtb').length} / ${D.length-air.length}`)+r('Średnia bateria',`${avg.toFixed(0)}%`)+
+    r('Wykryte grupy (łącznie)',D.reduce((a,d)=>a+d[5],0))+r('Wykrycia / km lotu',S.det_km.toFixed(2))+r('Zgłoszenia do weryfikacji',S.cands.length)+r('Czas lotu na baterii',`${S.flight_time/60} min`);
+  if(!D.length)return;
+  $('drones').innerHTML=D.map(([x,y,id,st,bat,det,dist,ch,bx,by,role,sens,R,md,nasg,net])=>{
+    const col=bat>50?'#3c6':bat>25?'#fc3':'#e44',left=bat/100*S.flight_time;
+    return `<div class="dr ${st}" data-x="${x}" data-y="${y}"><div class="hd"><b>✚ Dron ${id}</b><span class="st">${md&&st==='patrol'?DMD[md]:DST[st]}</span></div>
+      <div class="bat"><i style="width:${bat}%;background:${col}"></i></div>
+      <div class="hd"><span>🔋 ${bat.toFixed(0)}%</span><small>${st==='charge'?`gotowy za ${fmt(ch)}`:`zostało ~${fmt(left)} lotu`}</small></div>
+      <small>${ROLE[role]} · ${sens.toUpperCase()} ${R} m · wykrycia: ${det} · dystans: ${(dist/1000).toFixed(1)} km<br>
+      📋 rejestr: ${nasg} przydz. · 📶 ${net.length>1?'sieć z: '+net.filter(i=>i!==id).map(i=>'D'+i).join(', '):'brak łączności'}</small></div>`}).join('');
+  document.querySelectorAll('.dr').forEach(el=>el.onclick=()=>map.flyTo(toLL(+el.dataset.x,+el.dataset.y),18));
+}
+const tab=t=>{for(const k of 'CDS'){$('t'+k).classList.toggle('on',t===k);$('tab'+k).classList.toggle('on',t===k)}};
+$('tC').onclick=()=>tab('C');$('tD').onclick=()=>tab('D');$('tS').onclick=()=>{tab('S');if(S)updRes()};
+
+// ---------- widok mieszkańca ----------
+let civil=false,BOUNDS=null;
+const CCOL=['#2c5','#fc3','#e33'],CTXT=['wolne miejsca','mało miejsc','brak miejsc'];
+let pol=false;
+function setRole(r){r=r===true?'civ':r===false?'rcb':r;civil=r==='civ';pol=r==='pol';const c=civil||pol;
+  document.body.classList.toggle('civil',civil);document.body.classList.toggle('police',pol);
+  $('rRcb').classList.toggle('on',r==='rcb');$('rCiv').classList.toggle('on',civil);$('rPol').classList.toggle('on',pol);
+  if(c&&heatL){heatL.remove();heatL=null}
+  for(const id in bpoly){const p=bpoly[id];if(!p.isShelter)p.setStyle(c?{...BST,opacity:.15,fillOpacity:.02}:bStyle(p.b))}
+  setTimeout(()=>{map.invalidateSize();const me=S&&S.civ&&S.civ.me,[x0,x1,y0,y1]=BOUNDS;
+    if(civil&&me)map.setView(toLL(me.x,me.y),16);else map.fitBounds([toLL(x0,y0),toLL(x1,y1)]);draw();if(civil)updCiv();if(pol)updPol()},50)}
+$('rRcb').onclick=()=>setRole('rcb');$('rCiv').onclick=()=>setRole('civ');$('rPol').onclick=()=>setRole('pol');
+$('bPolAdd').onclick=()=>send({cmd:'pol_add'});$('bPolRem').onclick=()=>send({cmd:'pol_remove'});
+$('polAuto').onchange=e=>send({cmd:'pol_auto',on:e.target.checked});
+$('polRun').onclick=()=>send({cmd:'run',on:!S?.running});
+function civRandom(){const [x0,x1,y0,y1]=BOUNDS,ll=toLL(x0+(x1-x0)*(.2+.6*Math.random()),y0+(y1-y0)*(.2+.6*Math.random()));
+  send({cmd:'me',lat:ll.lat,lon:ll.lng})}
+function updShort(){const A=S.shortage;
+  if(!A||!A.active){setH($('short'),'');return}
+  setH($('short'),`<div class="al"><b>⚠ BRAK WOLNYCH MIEJSC W SCHRONACH</b><br>
+    <small>Wolne miejsca: ${A.free} · osoby wykryte bez przydziału: ~${A.need}${A.deficit?` · brakuje ~${A.deficit} miejsc`:''}.<br>
+    Operator: wyznacz nowy budynek jako schron (kliknij budynek na mapie lub wybierz z propozycji).</small>
+    ${A.sugg.map((g,i)=>`<div class="sg">${i+1}. <b>${g.name}</b> · ${g.src}<br>poj. ~${g.cap} · ${g.dist} m od grup bez przydziału<br>
+      <button data-act="shelter" data-sid="${g.id}">🛡️ Oznacz jako schron</button>
+      <button data-act="show" data-x="${g.x}" data-y="${g.y}">📍 Pokaż</button></div>`).join('')}</div>`)}
+$('short').addEventListener('pointerdown',e=>{const b=e.target.closest('button[data-act]');if(!b)return;e.preventDefault();
+  if(b.dataset.act==='shelter')send({cmd:'shelter',id:b.dataset.sid});else map.flyTo(toLL(+b.dataset.x,+b.dataset.y),18)});
+function setH(el,h){if(el._h!==h){el.innerHTML=h;el._h=h}}
+function act(e){const b=e.target.closest('button[data-act]');if(!b)return;e.preventDefault();e.stopPropagation();
+  const a=b.dataset.act,me=S&&S.civ&&S.civ.me;
+  if(a==='run')send({cmd:'run',on:!S?.running});else if(a==='rand')civRandom();
+  else if(a==='walk')send({cmd:'walk',on:!(me&&me.walking)});else send({cmd:a,id:+b.dataset.id})}
+$('civCard').addEventListener('pointerdown',act);$('polPanel').addEventListener('pointerdown',act);
+L.DomEvent.disableClickPropagation($('civCard'));
+$('polPanel').addEventListener('click',e=>{if(e.target.closest('button'))return;const el=e.target.closest('.pt');
+  if(el)map.flyTo(toLL(+el.dataset.x,+el.dataset.y),17)});
+function updCiv(){
+  const c=S&&S.civ,me=c&&c.me,run=`<button data-act="run">${S?.running?'⏸':'▶'}</button>`;
+  if(!me){setH($('civCard'),`<div class="tn">📍 Gdzie jesteś?</div><small>Dotknij mapę w miejscu, w którym się znajdujesz.
+    Pokażemy najbliższy schron z wolnymi miejscami i czas dojścia.</small>
+    <div class="row"><button data-act="rand">🎲 Losowe miejsce (pokaz)</button>${run}</div>`);return}
+  const t=me.target,note=me.note?`<div class="note ${me.inside?'ok':''}">${me.note}</div>`:'';
+  if(me.inside){setH($('civCard'),note+`<div class="tn">✅ Jesteś w schronie</div><small>${t?t.name:''}</small>
+    <div class="row"><small>Pozostań w środku i słuchaj komunikatów służb.</small>${run}</div>`);return}
+  if(!t){setH($('civCard'),note+`<div class="tn">⚠ Brak wolnego schronu w pobliżu</div>
+    <small>Kieruj się komunikatami służb. Dotknij mapę, aby zmienić położenie.</small><div class="row"><span></span>${run}</div>`);return}
+  setH($('civCard'),note+`<small>Sugerowany schron</small><div class="tn">${t.name}</div>
+    <small>${t.kind}${t.access?' · dostępność: '+t.access:''}</small>
+    <div class="row"><div><div class="big">${Math.max(1,Math.round(me.eta/60))} min</div><small>pieszo · ${me.dist} m</small></div>
+      <span class="chip" style="background:${CCOL[t.status]}">${CTXT[t.status]}</span></div>
+    <div class="row" style="gap:6px"><button class="go" data-act="walk">${me.walking?'⏸ Zatrzymaj':'🚶 Prowadź mnie'}</button>${run}</div>
+    <small>🟢 wolne · 🟡 mało miejsc · 🔴 pełne — ${S.running?'':'symulacja wstrzymana · '}dotknij mapę, aby zmienić położenie</small>`)}
+function drawCiv(){
+  const me=S.civ&&S.civ.me;if(!me)return;
+  if(me.route.length>1)L.polyline(me.route.map(([x,y])=>toLL(x,y)),{renderer:rend,color:'#4af',weight:6,opacity:.9,interactive:false}).addTo(dyn);
+  if(me.target&&!me.inside)L.circle(toLL(me.target.x,me.target.y),{radius:22,renderer:rend,color:'#fff',weight:3,fill:false,dashArray:'6 4',interactive:false}).addTo(dyn);
+  L.circleMarker(toLL(me.x,me.y),{radius:9,renderer:rend,color:'#fff',weight:3,fillColor:'#1a73e8',fillOpacity:1,interactive:false}).addTo(dyn);
+}
+
+// ---------- widok policji ----------
+const TST={nowe:'NOWE',przydzielone:'W DRODZE','w realizacji':'NA MIEJSCU',zakończone:'ZAKOŃCZONE',nieaktualne:'NIEAKTUALNE'};
+function polCard(t){const act=!['zakończone','nieaktualne'].includes(t.st),sc=t.st==='w realizacji'?'wr':t.st;
+  let h=`<div class="pt ${t.kind}${act?'':' done'}" data-x="${t.x}" data-y="${t.y}"><div class="hd"><b>${t.kind==='grupa'?'🟣 Przejęcie grupy':'🔴 Zabezpieczenie schronu'}</b>
+    <span class="st2 ${sc}">${TST[t.st]}${t.unit?' · P'+t.unit:''}</span></div><small>${t.note} · zgłoszone ${fmt(t.t)}</small>`;
+  if(act&&t.kind==='grupa')h+=`<br><small>📍 Punkt przejęcia: ok. 150 m przed grupą na jej trasie (fioletowy okrąg na mapie)</small>`;
+  if(act&&t.kind==='schron'){
+    if(t.fill)h+=`<br><small>Zajętość: ${t.fill[0]}/${t.fill[1]}</small>`;
+    h+=t.alt?`<div class="${t.st==='w realizacji'?'say':'alt'}">${t.st==='w realizacji'?'📣 Kieruj ludzi do: ':'➡ Alternatywa: '}${t.alt.name}${t.alt.addr&&!t.alt.name.includes(t.alt.addr)?', '+t.alt.addr:''}<br>
+      wolne ~${t.alt.free} · ${t.alt.dist} m · ${Math.max(1,Math.round(t.alt.eta/60))} min pieszo</div>`
+      :`<div class="say">⚠ Brak wolnego schronu w okolicy – zgłoś do RCB</div>`}
+  if(t.st==='nowe')h+=`<button data-act="pol_send" data-id="${t.id}">🚓 ${t.kind==='grupa'?'Wyślij patrol':'Wyślij zastęp'}</button>`;
+  if(t.st==='w realizacji'&&t.kind==='schron')h+=` <button data-act="pol_done" data-id="${t.id}">Zakończ zabezpieczenie</button>`;
+  return h+'</div>'}
+function updPol(){const P=S&&S.police;if(!P)return;
+  setH($('polUnits'),(P.units.length?'':'<i style="color:#999">Brak patroli – RCB może je wypuścić.</i>')+P.units.map(u=>`<div class="stat">🚓 Patrol P${u.id}<b>${u.state==='wolny'?'patroluje teren':u.state}${u.task?' · zad. #'+u.task:''}</b></div>`).join(''));
+  const act=P.tasks.filter(t=>!['zakończone','nieaktualne'].includes(t.st)).sort((a,b)=>(a.st==='nowe'?0:1)-(b.st==='nowe'?0:1)||b.est-a.est);
+  setH($('polTasks'),act.map(polCard).join('')||'<i style="color:#999">Brak zadań – czekamy na dane z dronów.</i>');
+  setH($('polDone'),P.tasks.filter(t=>!act.includes(t)).slice(0,10).map(polCard).join('')||'<i style="color:#999">–</i>')}
+function drawPol(){const P=S.police;if(!P)return;
+  for(const [x,y,est] of S.tracks)  // grupy widziane przez drony (nie "prawda")
+    L.circleMarker(toLL(x,y),{radius:6,renderer:rend,color:'#4cf',weight:2,fillColor:'#4cf',fillOpacity:.4,interactive:false}).addTo(dyn);
+  for(const t of P.tasks){if(['zakończone','nieaktualne'].includes(t.st))continue;
+    if(t.kind==='grupa'){
+      L.circle(toLL(t.x,t.y),{radius:60,renderer:rend,color:'#a6f',weight:2,dashArray:'6 4',fillColor:'#a6f',fillOpacity:.15,interactive:false}).addTo(dyn);
+      if(t.g)L.polyline([toLL(...t.g),toLL(t.x,t.y)],{renderer:rend,color:'#a6f',weight:2,dashArray:'2 6',interactive:false}).addTo(dyn);
+      if(t.to)L.polyline([toLL(t.x,t.y),toLL(t.to.x,t.to.y)],{renderer:rend,color:'#a6f',weight:2,opacity:.6,dashArray:'8 6',interactive:false}).addTo(dyn);
+      L.marker(toLL(t.x,t.y),{interactive:false,icon:L.divIcon({className:'',iconSize:[0,0],html:`<div class="tl2">🟣 #${t.id} przejęcie ~${t.est} os.</div>`})}).addTo(dyn);
+    }else{
+      L.circle(toLL(t.x,t.y),{radius:45,renderer:rend,color:'#e44',weight:3,fill:false,interactive:false}).addTo(dyn);
+      L.marker(toLL(t.x,t.y),{interactive:false,icon:L.divIcon({className:'',iconSize:[0,0],html:`<div class="tl2">🔴 #${t.id} zabezpieczyć</div>`})}).addTo(dyn);
+      if(t.alt){L.polyline([toLL(t.x,t.y),toLL(t.alt.x,t.alt.y)],{renderer:rend,color:'#5e5',weight:3,dashArray:'10 6',interactive:false}).addTo(dyn);
+        L.marker(toLL(t.alt.x,t.alt.y),{interactive:false,icon:L.divIcon({className:'',iconSize:[0,0],html:`<div class="tl2" style="background:#1c5a2a">➡ alternatywa dla #${t.id}</div>`})}).addTo(dyn)}
+    }}
+  for(const u of P.units){
+    if(u.route.length)L.polyline([[u.x,u.y],...u.route].map(([x,y])=>toLL(x,y)),{renderer:rend,color:u.state==='wolny'?'#888':'#1a4fd8',
+      weight:u.state==='wolny'?2:4,opacity:.8,dashArray:u.state==='wolny'?'4 6':null,interactive:false}).addTo(dyn);
+    L.marker(toLL(u.x,u.y),{interactive:false,icon:L.divIcon({className:'unit',iconSize:[0,0],
+      html:`<div class="u ${u.state==='wolny'?'wolny':u.state==='na miejscu'?'na':''}">🚓 P${u.id}</div>`})}).addTo(dyn)}
+  $('polRun').textContent=S.running?'⏸':'▶'}
+
+// ---------- rysowanie (warstwy Leaflet) ----------
+{const p=map.createPane('dyn');p.style.pointerEvents='none';p.style.zIndex=450}  // warstwa dynamiczna nie blokuje klików w budynki
+const dyn=L.layerGroup().addTo(map),rend=L.canvas({padding:.3,pane:'dyn'});
+const GCOL=['#f93','#fd4','#5e5'];
+// ikona quadkoptera: kolor = poziom baterii, obrys = stan (pomarańczowy: powrót do bazy)
+const droneSvg=(c,o)=>`<svg width="30" height="30" viewBox="0 0 30 30"><g stroke="${o}" stroke-width="1.6">
+  <line x1="8" y1="8" x2="22" y2="22" stroke-width="3"/><line x1="22" y1="8" x2="8" y2="22" stroke-width="3"/>
+  <line x1="8" y1="8" x2="22" y2="22" stroke="${c}" stroke-width="1.4"/><line x1="22" y1="8" x2="8" y2="22" stroke="${c}" stroke-width="1.4"/>
+  ${[[7,7],[23,7],[7,23],[23,23]].map(([x,y])=>`<circle cx="${x}" cy="${y}" r="5" fill="${c}" fill-opacity=".55"/>`).join('')}
+  <rect x="11" y="11" width="8" height="8" rx="2" fill="${c}"/></g></svg>`;
+{const p=map.createPane('heat');p.style.pointerEvents='none';p.style.zIndex=420}
+const hc=document.createElement('canvas');let heatL=null;
+function drawHeat(h){
+  if(civil||pol)return;
+  if(!$('heat').checked){if(heatL){heatL.remove();heatL=null}return}
+  hc.width=h.w;hc.height=h.h;const cx=hc.getContext('2d'),img=cx.createImageData(h.w,h.h);
+  for(let j=0;j<h.h;j++)for(let i=0;i<h.w;i++){const v=h.v[j*h.w+i]/99,k=4*((h.h-1-j)*h.w+i);
+    img.data[k]=255;img.data[k+1]=Math.round(230*(1-v));img.data[k+2]=0;img.data[k+3]=Math.round(170*v*v)}
+  cx.putImageData(img,0,0);
+  const b=[toLL(h.x0,h.y0),toLL(h.x0+h.w*h.cell,h.y0+h.h*h.cell)];
+  if(!heatL)heatL=L.imageOverlay(hc.toDataURL(),b,{pane:'heat',opacity:.8,className:'heatimg'}).addTo(map);
+  else heatL.setUrl(hc.toDataURL());
+}
+function draw(){
+  dyn.clearLayers();if(!S||!C)return;
+  if(civil)return drawCiv();
+  if(!pol&&S.shortage&&S.shortage.active)for(const g of S.shortage.sugg){
+    L.circle(toLL(g.x,g.y),{radius:35,renderer:rend,color:'#f44',weight:3,dashArray:'5 4',fill:false,interactive:false}).addTo(dyn);
+    L.marker(toLL(g.x,g.y),{interactive:false,icon:L.divIcon({className:'',iconSize:[0,0],html:`<div class="tl2" style="background:#8b1a1a">🛡️ propozycja schronu</div>`})}).addTo(dyn)}
+  if(pol)return drawPol();
+  for(const [a0,a1,b0,b1,id] of S.sectors){
+    L.rectangle([toLL(a0,b0),toLL(a1,b1)],{renderer:rend,color:'#c8f',weight:1.5,dashArray:'8 6',fill:false,interactive:false}).addTo(dyn);
+    L.marker(toLL(a0+15,b1-15),{interactive:false,icon:L.divIcon({className:'trk',iconSize:[0,0],
+      html:`<div class="tl" style="left:0;top:0;color:#c8f">Sektor D${id}</div>`})}).addTo(dyn)}
+  for(const [gx,gy,sx,sy] of S.leads)
+    L.polyline([toLL(gx,gy),toLL(sx,sy)],{renderer:rend,color:'#5e5',weight:3,opacity:.9,dashArray:'2 8',lineCap:'round',interactive:false}).addTo(dyn);
+  for(const [x1,y1,x2,y2] of S.links)
+    L.polyline([toLL(x1,y1),toLL(x2,y2)],{renderer:rend,color:'#fff',weight:1.5,opacity:.7,dashArray:'4 6',interactive:false}).addTo(dyn);
+  for(const [x,y,est] of S.cands)
+    L.circle(toLL(x,y),{radius:25,renderer:rend,color:'#f93',weight:2,dashArray:'5 5',fill:false,interactive:false}).addTo(dyn);
+  for(const [x,y,id,st,bat,,,,bx,by,role,sens,R,md] of S.drones){const ll=toLL(x,y),dc=sens==='ir'?'#f55':'#4af';
+    L.marker(toLL(bx,by),{interactive:false,icon:L.divIcon({className:'base',iconSize:[34,34],iconAnchor:[17,17],
+      html:`<div class="hp${st==='charge'?' ch':''}">H</div><div class="bl">Baza D${id}</div>`})}).addTo(dyn);
+    if(st==='charge')continue;
+    L.circle(ll,{radius:R,renderer:rend,color:dc,weight:md?2:1,dashArray:role==='scout'?'6 4':null,fillColor:dc,fillOpacity:.13,interactive:false}).addTo(dyn);
+    L.marker(ll,{interactive:false,zIndexOffset:500,icon:L.divIcon({className:'drn',iconSize:[30,30],iconAnchor:[15,15],
+      html:droneSvg(bat>50?'#3c6':bat>25?'#fc3':'#e44',st==='rtb'?'#f93':'#fff')+`<span>D${id}</span>`})}).addTo(dyn)}
+  for(const u of (S.police?S.police.units:[]))
+    L.marker(toLL(u.x,u.y),{interactive:false,icon:L.divIcon({className:'unit',iconSize:[0,0],
+      html:`<div class="u ${u.state==='wolny'?'wolny':u.state==='na miejscu'?'na':''}">🚓 P${u.id}</div>`})}).addTo(dyn);
+  if(view==='truth'){
+    for(const [id,x,y,n,st,det] of S.groups)
+      L.circle(toLL(x,y),{radius:Math.max(3,Math.sqrt(n)*1.6),renderer:rend,fillColor:GCOL[st],fillOpacity:.9,
+        color:det?'#4cf':'#000',weight:det?3:1,interactive:false}).addTo(dyn);
+  }else{
+    for(const [x,y,est,age] of S.tracks){const o=Math.max(.3,1-age/300);
+      L.marker(toLL(x,y),{interactive:false,opacity:o,icon:L.divIcon({className:'trk',iconSize:[0,0],
+        html:`<div class="tx">⌖</div><div class="tl">~${est} os. · ${fmt(age)} temu</div>`})}).addTo(dyn)}
+  }
+}
+
+// ---------- sterowanie ----------
+$('bDemo').onclick=()=>{$('feed').innerHTML='';send({cmd:'demo'})};
+$('bRun').onclick=()=>send({cmd:'run',on:!S?.running});
+$('bRst').onclick=()=>{$('feed').innerHTML='';send({cmd:'reset'})};
+$('wxFetch').onclick=()=>send({cmd:'weather_fetch'});
+$('ww').oninput=e=>$('wwV').textContent=e.target.value;$('wr').oninput=e=>$('wrV').textContent=e.target.value;
+$('wt').oninput=e=>$('wtV').textContent=e.target.value;
+$('wxSet').onclick=()=>send({cmd:'weather',wind:+$('ww').value,wdir:+$('wd').value,rain:+$('wr').value,temp:+$('wt').value,hum:$('wf').checked?97:60});
+$('escN').oninput=e=>$('escNV').textContent=e.target.value;
+$('bRnd').onclick=()=>send({cmd:'random'});
+$('sp').oninput=e=>{$('spV').textContent=e.target.value;send({cmd:'speed',v:+e.target.value})};
+$('gs').oninput=e=>$('gsV').textContent=e.target.value;
+const cfg=()=>send({cmd:'config',night:$('night').checked,sensor:$('sensor').value,guide:$('guide').checked,
+  strategy:$('strat').value,dynamic:$('dyn').checked,two_stage:$('two').checked,rotation:$('rot').checked,escort_mode:$('escMode').value,escort_n:+$('escN').value,comms:$('comm').checked});
+['strat','dyn','two','rot','escMode','escN','comm'].forEach(id=>$(id).onchange=cfg);
+$('heat').onchange=()=>{if(!$('heat').checked&&heatL){heatL.remove();heatL=null}};
+ws.onopen=cfg;
+$('night').onchange=e=>{document.body.classList.toggle('night',e.target.checked);cfg()};
+$('sensor').onchange=cfg;$('guide').onchange=cfg;
+function setView(v){view=v;$('vTruth').classList.toggle('on',v==='truth');$('vOp').classList.toggle('on',v==='op');
+  document.body.classList.toggle('opview',v==='op');
+  $('badge').textContent=v==='truth'?'STAN RZECZYWISTY (symulacja)':'OBRAZ OPERATORA – tylko dane z dronów';draw()}
+$('vTruth').onclick=()=>setView('truth');$('vOp').onclick=()=>setView('op');
+</script>
+</body>
+</html>
