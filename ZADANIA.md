@@ -177,3 +177,12 @@ origin wskazuje właściwe repozytorium cwotsquad/DUHackathon_29092026. Autor co
 nie steruje kontem HTTPS. Przekazano instrukcję wyboru cwotsquad w edycji remote
 w Fork i ponownego push. Nie zmieniano kont globalnych ani nie wysyłano commitów.
 Następny krok: użytkownik wybiera konto dla origin; wynik push pozostaje niezweryfikowany.
+
+### 2026-09-29 — Codex → użytkownik — scalenie master do main
+
+Pobrano stan origin i połączono niezależne historie main oraz master bez konfliktów,
+z zachowaniem README z main i projektu z master. Potwierdzono, że main zawiera
+historię master. Lokalny master przeznaczony do usunięcia po tym sprawdzeniu.
+Push main nie powiódł się: terminal nie ma poświadczeń HTTPS konta cwotsquad.
+Kolejny krok: Push main z zalogowanego Fork, następnie usunięcie origin/master.
+Nie zmieniano kodu aplikacji; nie uruchamiano testów aplikacji.
