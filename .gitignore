@@ -17,6 +17,9 @@ cache/[0-9a-f]*[0-9a-f].json
 # Materiały organizatora hackathonu (nie są częścią kodu)
 *.pdf
 
+# Dokumenty Markdown
+*.md
+
 # Ustawienia lokalne narzędzi i edytorów
 .claude/
 .idea/
