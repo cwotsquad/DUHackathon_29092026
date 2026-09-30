@@ -1,0 +1,25 @@
+**Źródła danych i algorytmy projektu**
+
+Stan przeglądu: 30.09.2026. Poniżej wskazano źródła faktycznie wykorzystywane w kodzie i lokalnych zbiorach projektu.
+
+**Zewnętrzne źródła danych**
+
+| Źródło i cytowanie | Pozyskane dane | Zastosowanie |
+|---|---|---|
+| **© OpenStreetMap contributors** — [OpenStreetMap: autorstwo i licencja](https://www.openstreetmap.org/copyright) | Sieć piesza, długości połączeń, obrysy, nazwy, typy i kondygnacje budynków; pobieranie przez OSMnx. | Wyznaczanie tras i budowa mapy. Kafelki OSM służą również jako podkład. |
+| **Główny Urząd Geodezji i Kartografii, BDOT10k, miasto Rzeszów (1863)** — [archiwum GML](https://opendata.geoportal.gov.pl/bdot10k/schemat2021/18/1863_GML.zip) | Geometria, funkcje i liczba kondygnacji budynków z warstwy `OT_BUBD_A`. | Alternatywna warstwa budynków, priorytety przeszukiwania i propozycje miejsc schronienia. |
+| **KG PSP, punkty schronienia, serwis Gdzie się ukryć** — [plik CSV](https://gdziesieukryc.pl/PS_XML/punkty_schronienia.csv) | Identyfikatory, współrzędne, adresy i dostępność punktów. | Propozycje punktów schronienia dopasowywane do budynków. **Pobrany CSV nie zawiera pojemności.** |
+| **Główny Urząd Geodezji i Kartografii, ortofotomapa** — [usługa WMS Geoportalu](https://mapy.geoportal.gov.pl/wss/service/PZGIK/ORTO/WMS/HighResolution) | Obraz ortofotomapy, warstwa `Raster`. | Fotograficzny podkład mapy; bez automatycznej analizy obrazu. |
+| **IMGW-PIB, dane synoptyczne dla stacji Rzeszów** — [API danych publicznych](https://danepubliczne.imgw.pl/api/data/synop/station/rzeszow) | Temperatura, wiatr, suma opadu, wilgotność, ciśnienie i czas pomiaru. | Warunki pogodowe scenariusza; własny model wpływu pogody na lot i wykrywanie. |
+
+Źródła i adresy ustalono na podstawie `map_loader.py`, `server.py` oraz `web/index.html`. OSM, BDOT10k i PSP mają lokalne kopie w `cache/`; ortofotomapa i kafelki mapy są pobierane do wyświetlania, a pogoda na starcie lub żądanie użytkownika. Data przeglądu nie jest datą pozyskania danych. Projekt nie zapisuje kompletu dat pobrania i wersji zbiorów; aktualności i warunków licencyjnych wszystkich źródeł nie zweryfikowano niezależnie.
+
+**Dane własne i wymagające uzupełnienia źródła**
+
+- **Dane symulowane:** liczba i rozmieszczenie ludzi, ich zachowanie, wykrycia, zajętość schronów, baterie i komunikacja dronów. Nie pochodzą z pomiarów terenowych.
+- **Pojemności schronów:** większość wynika z własnej heurystyki powierzchni budynku lub ustawień scenariusza. Pięć pojemności w `KNOWN_SCHRONY` opisano w kodzie jako pochodzące z komunikatów miasta, ale brakuje odnośnika i daty dokumentu — wymagają uzupełnienia cytowania.
+- **Mapa priorytetów:** powstaje z funkcji budynków i sieci ulic; nie jest zewnętrznym zbiorem gęstości zaludnienia.
+
+**Algorytmy — skrót**
+
+Wykorzystujemy standardowe algorytmy najkrótszej drogi (Dijkstra), spójności grafu i DFS, podział Voronoia na siatce, trasy typu kosiarka i spirala Archimedesa oraz operacje geometrii przestrzennej. Własna logika projektu obejmuje priorytety poszukiwań, zachowanie grup, rezerwacje i przydział schronów, synchronizację wiedzy dronów, model sensorów i pogody oraz zadania patroli. Są to reguły i heurystyki symulacyjne, nie algorytmy wytrenowane na rzeczywistych danych z dronów.
